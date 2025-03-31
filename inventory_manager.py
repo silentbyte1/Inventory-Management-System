@@ -1,42 +1,56 @@
 import os
 import sys
-import sqlite3
-from datetime import datetime
 import time
+from datetime import datetime
 from tabulate import tabulate
 
 # Check if required packages are installed, if not install them
 try:
     import git
+    import mysql.connector
 except ImportError:
     print("Installing required packages...")
     import subprocess
-    packages = ["gitpython", "tabulate"]
+    packages = ["gitpython", "tabulate", "mysql-connector-python"]
     for package in packages:
         subprocess.check_call([sys.executable, "-m", "pip", "install", package])
     import git
+    import mysql.connector
+    from tabulate import tabulate
 
 # Database setup
 class Database:
-    def __init__(self, db_file="inventory_management.db"):
-        self.db_file = db_file
+    def __init__(self, host="localhost", user="root", password="", database="inventory_management"):
+        self.host = host
+        self.user = user
+        self.password = password
+        self.database = database
         self.connection = None
         self.cursor = None
         self.connect()
         
     def connect(self):
-        """Connect to SQLite database"""
+        """Connect to MySQL database"""
         try:
-            self.connection = sqlite3.connect(self.db_file)
+            # First connect without database to create it if needed
+            self.connection = mysql.connector.connect(
+                host=self.host,
+                user=self.user,
+                password=self.password
+            )
             self.cursor = self.connection.cursor()
+            
+            # Create database if it doesn't exist
+            self.cursor.execute(f"CREATE DATABASE IF NOT EXISTS {self.database}")
+            self.cursor.execute(f"USE {self.database}")
             
             # Create tables if they don't exist
             self._create_tables()
             
-            print(f"Connected to SQLite database: {self.db_file}")
+            print(f"Connected to MySQL database: {self.database}")
             return True
-        except sqlite3.Error as e:
-            print(f"Error connecting to SQLite: {e}")
+        except mysql.connector.Error as e:
+            print(f"Error connecting to MySQL: {e}")
             return False
     
     def _create_tables(self):
@@ -46,23 +60,23 @@ class Database:
         # Products table
         tables['products'] = """
         CREATE TABLE IF NOT EXISTS products (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            price REAL NOT NULL,
-            quantity INTEGER NOT NULL,
-            category TEXT,
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            name VARCHAR(255) NOT NULL,
+            price DECIMAL(10, 2) NOT NULL,
+            quantity INT NOT NULL,
+            category VARCHAR(100),
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
         )
         """
         
         # Customers table
         tables['customers'] = """
         CREATE TABLE IF NOT EXISTS customers (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            email TEXT UNIQUE,
-            phone TEXT,
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            name VARCHAR(255) NOT NULL,
+            email VARCHAR(255) UNIQUE,
+            phone VARCHAR(20),
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
         """
@@ -70,9 +84,9 @@ class Database:
         # Purchases table
         tables['purchases'] = """
         CREATE TABLE IF NOT EXISTS purchases (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            customer_id INTEGER,
-            total_amount REAL NOT NULL,
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            customer_id INT,
+            total_amount DECIMAL(10, 2) NOT NULL,
             purchase_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE SET NULL
         )
@@ -81,11 +95,11 @@ class Database:
         # Purchase items table
         tables['purchase_items'] = """
         CREATE TABLE IF NOT EXISTS purchase_items (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            purchase_id INTEGER NOT NULL,
-            product_id INTEGER NOT NULL,
-            quantity INTEGER NOT NULL,
-            price_per_unit REAL NOT NULL,
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            purchase_id INT NOT NULL,
+            product_id INT NOT NULL,
+            quantity INT NOT NULL,
+            price_per_unit DECIMAL(10, 2) NOT NULL,
             FOREIGN KEY (purchase_id) REFERENCES purchases(id) ON DELETE CASCADE,
             FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
         )
@@ -95,7 +109,7 @@ class Database:
             try:
                 self.cursor.execute(query)
                 print(f"Created table {table_name} if it didn't exist")
-            except sqlite3.Error as e:
+            except mysql.connector.Error as e:
                 print(f"Error creating table {table_name}: {e}")
     
     def execute_query(self, query, params=None):
@@ -104,7 +118,7 @@ class Database:
             self.cursor.execute(query, params or ())
             self.connection.commit()
             return True
-        except sqlite3.Error as e:
+        except mysql.connector.Error as e:
             print(f"Error executing query: {e}")
             return False
     
@@ -113,7 +127,7 @@ class Database:
         try:
             self.cursor.execute(query, params or ())
             return self.cursor.fetchall()
-        except sqlite3.Error as e:
+        except mysql.connector.Error as e:
             print(f"Error fetching data: {e}")
             return []
     
@@ -122,7 +136,7 @@ class Database:
         try:
             self.cursor.execute(query, params or ())
             return self.cursor.fetchone()
-        except sqlite3.Error as e:
+        except mysql.connector.Error as e:
             print(f"Error fetching data: {e}")
             return None
     
@@ -131,7 +145,7 @@ class Database:
         if self.connection:
             self.cursor.close()
             self.connection.close()
-            print("SQLite connection closed")
+            print("MySQL connection closed")
 
 # Git Manager
 class GitManager:
@@ -699,7 +713,7 @@ class InventoryApp:
     def run(self):
         """Run the application"""
         print("\nWelcome to the Inventory Management System!")
-        print("This application will create a SQLite database file: inventory_management.db")
+        print("This application will create a MySQL database: inventory_management")
         print("It will also initialize a Git repository for version control.\n")
         
         # Ask if user wants sample data
@@ -730,7 +744,6 @@ class InventoryApp:
             elif choice == '9':
                 self.db.close()
                 print("\nExiting Inventory Management System. Goodbye!")
-                print(f"Your database file has been saved as: {self.db.db_file}")
                 sys.exit(0)
             else:
                 print("\nInvalid choice. Please try again.")
