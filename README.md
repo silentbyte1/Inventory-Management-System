@@ -6,10 +6,12 @@ This is an inventory management system that uses MySQL for the database and Git 
 - Customers to make purchases
 - All changes are tracked in Git history
 
-## For Professor
+## Author
+created by Gunjan Basak , Subhajit Gayen
+Chirantan Biswas
 
-### Assignment Submission
-This submission includes:
+### Project overview
+This Project includes:
 - `inventory_manager.py` - The main Python file containing the complete application
 - `README.md` - This documentation file
 - The program connects to a MySQL database (and will create it if it doesn't exist)

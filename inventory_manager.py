@@ -22,6 +22,7 @@ except ImportError:
 class Database:
     def __init__(self, host="localhost", user="root", password="", database="inventory_management"):
         self.host = host
+        self.host = host
         self.user = user
         self.password = password
         self.database = database
