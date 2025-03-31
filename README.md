@@ -1,7 +1,7 @@
 # Inventory Management System with Git Integration
 
 ## Overview
-This is an inventory management system that uses SQLite for the database and Git for version control. The system allows:
+This is an inventory management system that uses MySQL for the database and Git for version control. The system allows:
 - Store owners to manage products (add, update)
 - Customers to make purchases
 - All changes are tracked in Git history
@@ -12,22 +12,33 @@ This is an inventory management system that uses SQLite for the database and Git
 This submission includes:
 - `inventory_manager.py` - The main Python file containing the complete application
 - `README.md` - This documentation file
-- When run, the program will generate `inventory_management.db` (SQLite database file)
+- The program connects to a MySQL database (and will create it if it doesn't exist)
 
 ### How to Run
 1. Make sure Python is installed (Python 3.6 or higher recommended)
-2. Run the single file application:
+2. Make sure MySQL server is installed and running
+3. Run the single file application:
 ```
 python inventory_manager.py
 ```
-3. The application will:
-   - Automatically create a SQLite database file (`inventory_management.db`)
+4. The application will:
+   - Prompt for MySQL connection details (host, username, password, database name)
+   - Connect to your MySQL server and create the database if needed
    - Initialize a Git repository for version control
    - Ask if you want to add sample data for testing
    - Present a menu-driven interface to interact with the system
 
+### MySQL Connection
+When you start the program, you'll be prompted for:
+- MySQL Host (default: localhost)
+- MySQL Username (default: root) 
+- MySQL Password
+- Database Name (default: inventory_management)
+
+The program will attempt to connect to your MySQL server with these credentials and create the database if it doesn't exist.
+
 ### Technical Choices
-- **SQLite**: Used instead of MySQL for better portability (no server setup required)
+- **MySQL Database**: Used as requested in the assignment
 - **Single-file Design**: All functionality is contained in one Python file for ease of evaluation
 - **Automatic Dependency Installation**: Required packages will be installed automatically
 - **Git Integration**: All inventory changes and purchases are recorded with Git commits
@@ -54,7 +65,7 @@ python inventory_manager.py
 
 ## Technical Details
 
-- All required Python packages will be installed automatically (gitpython, tabulate)
+- All required Python packages will be installed automatically (gitpython, tabulate, mysql-connector-python)
 - The application is entirely contained in a single file for simplicity
 - Git commits are used to track inventory changes and purchases
 

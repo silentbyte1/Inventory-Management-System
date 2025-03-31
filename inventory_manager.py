@@ -239,7 +239,7 @@ class Product:
         """Add a new product to the inventory"""
         query = """
         INSERT INTO products (name, price, quantity, category)
-        VALUES (?, ?, ?, ?)
+        VALUES (%s, %s, %s, %s)
         """
         params = (name, price, quantity, category)
         return self.db.execute_query(query, params)
@@ -259,8 +259,8 @@ class Product:
         
         query = """
         UPDATE products
-        SET name = ?, price = ?, quantity = ?, category = ?, updated_at = CURRENT_TIMESTAMP
-        WHERE id = ?
+        SET name = %s, price = %s, quantity = %s, category = %s, updated_at = CURRENT_TIMESTAMP
+        WHERE id = %s
         """
         params = (name, price, quantity, category, product_id)
         return self.db.execute_query(query, params)
@@ -272,12 +272,12 @@ class Product:
     
     def get_product_by_id(self, product_id):
         """Get a product by its ID"""
-        query = "SELECT * FROM products WHERE id = ?"
+        query = "SELECT * FROM products WHERE id = %s"
         return self.db.fetch_one(query, (product_id,))
     
     def get_product_by_name(self, name):
         """Get a product by its name"""
-        query = "SELECT * FROM products WHERE name = ?"
+        query = "SELECT * FROM products WHERE name = %s"
         return self.db.fetch_one(query, (name,))
     
     def update_quantity(self, product_id, quantity_change):
@@ -293,7 +293,7 @@ class Product:
             print(f"Error: Insufficient quantity for product #{product_id}")
             return False
         
-        query = "UPDATE products SET quantity = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?"
+        query = "UPDATE products SET quantity = %s, updated_at = CURRENT_TIMESTAMP WHERE id = %s"
         params = (new_quantity, product_id)
         return self.db.execute_query(query, params)
 
@@ -305,7 +305,7 @@ class Customer:
         """Add a new customer"""
         query = """
         INSERT INTO customers (name, email, phone)
-        VALUES (?, ?, ?)
+        VALUES (%s, %s, %s)
         """
         params = (name, email, phone)
         return self.db.execute_query(query, params)
@@ -317,12 +317,12 @@ class Customer:
     
     def get_customer_by_id(self, customer_id):
         """Get a customer by ID"""
-        query = "SELECT * FROM customers WHERE id = ?"
+        query = "SELECT * FROM customers WHERE id = %s"
         return self.db.fetch_one(query, (customer_id,))
     
     def get_customer_by_email(self, email):
         """Get a customer by email"""
-        query = "SELECT * FROM customers WHERE email = ?"
+        query = "SELECT * FROM customers WHERE email = %s"
         return self.db.fetch_one(query, (email,))
 
 class Purchase:
@@ -363,21 +363,21 @@ class Purchase:
         # Create purchase record
         query = """
         INSERT INTO purchases (customer_id, total_amount)
-        VALUES (?, ?)
+        VALUES (%s, %s)
         """
         params = (customer_id, total_amount)
         if not self.db.execute_query(query, params):
             return False, None, None
         
-        # Get the purchase ID
-        query = "SELECT last_insert_rowid()"
-        purchase_id = self.db.fetch_one(query)[0]
+        # Get the purchase ID - modified for MySQL
+        self.db.cursor.execute("SELECT LAST_INSERT_ID()")
+        purchase_id = self.db.cursor.fetchone()[0]
         
         # Add purchase items
         for product_id, product_name, quantity, price in items_details:
             query = """
             INSERT INTO purchase_items (purchase_id, product_id, quantity, price_per_unit)
-            VALUES (?, ?, ?, ?)
+            VALUES (%s, %s, %s, %s)
             """
             params = (purchase_id, product_id, quantity, price)
             if not self.db.execute_query(query, params):
@@ -394,7 +394,7 @@ class Purchase:
         SELECT p.id, p.customer_id, p.total_amount, p.purchase_date, c.name
         FROM purchases p
         LEFT JOIN customers c ON p.customer_id = c.id
-        WHERE p.id = ?
+        WHERE p.id = %s
         """
         return self.db.fetch_one(query, (purchase_id,))
     
@@ -404,7 +404,7 @@ class Purchase:
         SELECT pi.id, pi.product_id, pi.quantity, pi.price_per_unit, p.name
         FROM purchase_items pi
         JOIN products p ON pi.product_id = p.id
-        WHERE pi.purchase_id = ?
+        WHERE pi.purchase_id = %s
         """
         return self.db.fetch_all(query, (purchase_id,))
     
@@ -415,14 +415,22 @@ class Purchase:
         FROM purchases p
         LEFT JOIN customers c ON p.customer_id = c.id
         ORDER BY p.purchase_date DESC
-        LIMIT ?
+        LIMIT %s
         """
         return self.db.fetch_all(query, (limit,))
 
 # Main Application
 class InventoryApp:
     def __init__(self):
-        self.db = Database()
+        # Prompt for database connection settings
+        print("\n=== Database Connection Settings ===")
+        print("(Press Enter to use defaults)")
+        host = input("MySQL Host [localhost]: ") or "localhost"
+        user = input("MySQL Username [root]: ") or "root"
+        password = input("MySQL Password: ") or ""
+        database = input("Database Name [inventory_management]: ") or "inventory_management"
+        
+        self.db = Database(host, user, password, database)
         self.git = GitManager()
         self.product_model = Product(self.db)
         self.customer_model = Customer(self.db)
@@ -713,8 +721,8 @@ class InventoryApp:
     def run(self):
         """Run the application"""
         print("\nWelcome to the Inventory Management System!")
-        print("This application will create a MySQL database: inventory_management")
-        print("It will also initialize a Git repository for version control.\n")
+        print("Connected to MySQL database")
+        print("The application will initialize a Git repository for version control.\n")
         
         # Ask if user wants sample data
         sample_data = input("Would you like to add sample data for demonstration? (y/n): ")
